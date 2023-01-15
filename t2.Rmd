@@ -1,0 +1,83 @@
+---
+title: "Mineração de Dados - T2"
+author: "Deivis, Eduardo e Roberto"
+date: "`r Sys.Date()`"
+toc: TRUE
+lang: pt-br
+output: pdf_document
+---
+
+# Pré-processamento
+
+```{r}
+library(data.table)
+library(datawizard)
+library(magrittr)
+library(stringr)
+library(arules)
+```
+
+Desbalanceamento de classes.
+
+```{r}
+x <- data.table::fread('saudeRS_2022.csv')
+
+x <- x[x$EVOLUCAO == 'OBITO']
+
+x <- data_remove(x, 
+                 select = c(
+                     'COD_IBGE',
+                     'MUNICIPIO',
+                     'COD_REGIAO_COVID',
+                     'REGIAO_COVID',
+                     'CRITERIO',
+                     'DATA_CONFIRMACAO',
+                     'DATA_SINTOMAS',
+                     'DATA_INCLUSAO',
+                     'DATA_EVOLUCAO',
+                     'DATA_INCLUSAO_OBITO',
+                     'DATA_EVOLUCAO_ESTIMADA',
+                     'BAIRRO',
+                     'FONTE_INFORMACAO'
+                 ))
+
+x$CONDICOES[x$CONDICOES != ''] <- 'SIM'
+x$CONDICOES[x$CONDICOES != 'SIM'] <- 'NAO'
+
+x$PAIS_NASCIMENTO[x$PAIS_NASCIMENTO == 'BRASIL'] <- 'SIM'
+x$PAIS_NASCIMENTO[x$PAIS_NASCIMENTO != 'SIM'] <- 'NAO'
+x$BRASILEIRO <- x$PAIS_NASCIMENTO
+x <- data_remove(x, select = 'PAIS_NASCIMENTO')
+
+x[x == 'NAO INFORMADO'] <- 'NAO'
+x[x == ''] <- 'NAO'
+
+x$ETNIA_INDIGENA[x$ETNIA_INDIGENA == 'NAO'] <- 'NÃO INFORMADO'
+x$RACA_COR[x$RACA_COR == 'NAO'] <- 'PARDA'
+
+x[x == 'NAO'] <- 0
+x[x == 'SIM'] <- 1
+x$SEXO[x$SEXO == 'Feminino'] <- 0
+x$SEXO[x$SEXO == 'Masculino'] <- 1
+
+x$EVOLUCAO[x$EVOLUCAO == 'OBITO OUTRAS CAUSAS'] <- 'OBITO'
+
+x$EVOLUCAO[x$EVOLUCAO == 'RECUPERADO'] <- 0
+x$EVOLUCAO[x$EVOLUCAO == 'OBITO'] <- 1
+
+sapply(x, unique)
+```
+
+```{r}
+x$RACA_COR <- factor(x$RACA_COR)
+x$ETNIA_INDIGENA <- factor(x$ETNIA_INDIGENA)
+x$FAIXAETARIA <- factor(x$FAIXAETARIA)
+ohe <- one_hot(as.data.table(x))
+```
+
+```{r}
+y <- apriori(ohe, list(support = 0.9, confidence = 0.98, maxlen = 4))
+inspect(y)
+```
+
+
